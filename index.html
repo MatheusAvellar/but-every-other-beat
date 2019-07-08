@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <link href="https://fonts.googleapis.com/css?family=Boogaloo|Roboto" rel="stylesheet"/>
+  <title> But Every Other Beat </title>
+  <style type="text/css">
+    html, body {
+      min-height: 100%;
+      height: 100%;
+      width: 100%;
+      min-width: 100%;
+    }
+    body {
+      margin: 0;
+      font-family: "Roboto";
+      text-align: center;
+      padding-top: 150px;
+      background-color: #f7f7f7;
+      box-sizing: border-box;
+    }
+    h1 {
+      font-weight: normal;
+    }
+    em {
+      font-family: "Boogaloo";
+      margin-right: 5px;
+      color: #fe4a49;
+      text-shadow: 2px 2px 0 #fed766;
+    }
+    section#dropzone {
+      position: fixed;
+      left: 0;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      justify-content: center;
+      align-items: center;
+      background-color: rgba(255,255,255,.8);
+      color: #282828;
+      z-index: 10;
+      border: 15px dashed #282828;
+      margin: 1.5%;
+    }
+    section#dropzone:not([hidden]) {
+      display: flex;
+    }
+
+    section#dropzone p {
+      pointer-events: none;
+      font-size: 60px;
+    }
+
+    #bpm-in {
+      font-family: inherit;
+      width: 40px;
+    }
+    .mid {
+      display: inline-block;
+      vertical-align: middle;
+    }
+
+    @keyframes grow {
+      from {  transform: scale(.01);  }
+      to {  transform: scale(1);  }
+    }
+    #anim {
+      width: 50px;
+      height: 50px;
+      display: inline-block;
+      border: 4px solid #ccc;
+      border-radius: 100%;
+    }
+    #anim div {
+      background-color: #ccc;
+      height: 100%;
+      width: 100%;
+      border-radius: 100%;
+    }
+    #anim div.playing {
+      animation-name: grow;
+      animation-duration: 1s;
+      animation-play-state: paused;
+      animation-iteration-count: infinite;
+      animation-timing-function: linear;
+      animation-play-state: running;
+    }
+  </style>
+</head>
+<body>
+  <section id="dropzone" hidden>
+    <p> Drop audio files here </p>
+  </section>
+  <h1>The <em>But Every Other Beat Is Missing</em> Machine</h1>
+  <br>
+  <p class="mid"> Song BPM: </p>
+  <input id="bpm-in" class="mid" type="text"/>
+  <br>
+  <div id="anim"><div></div></div>
+  <p></p>
+  <audio id="audio" controls></audio>
+  <br>
+  <input id="offset" type="range" min="-2" max="2" value="0" step="0.005"/>
+  <br>
+  <label id="offset-label"></label>
+  <script type="text/javascript">
+
+AudioContext = AudioContext || webkitAudioContext;
+
+const offset = document.getElementById("offset");
+const label = document.getElementById("offset-label");
+
+const anim = document.getElementById("anim");
+const bpm_in = document.getElementById("bpm-in");
+const audio = document.getElementById("audio");
+const songs = [
+  [ "maroon.mp3", 0 ],
+  [ "cheerup.mp3", 173 ],
+  [ "metrorio.mp3", 130.6 ], // I think this one's wrong
+  [ "dreamer.mp3", 0 ],
+  [ "soldiers.mp3", 0 ],
+  [ "beam.mp3", 128 ],
+  [ "trndsttr.mp3", 0 ],
+  [ "straighty-baby.mp3", 0 ],
+  [ "time.mp3", 0 ],
+  [ "turnitup.mp3", 0 ],
+  [ "chickenlegs.mp3", 0 ],
+  [ "pirate.mp3", 0 ],
+  [ "gravityfalls.mp3", 0 ],
+  [ "sevennation.mp3", 0 ],
+  [ "infected.mp3", 0 ],
+  [ "mountainking.mp3", 0 ],
+  [ "thousandmiles.mp3", 0 ],
+  [ "takeonme.mp3", 0 ]
+];
+const ID = 13;
+let _t = -1;
+audio.src = "https://avellar.ml/resources/" + songs[ID][0];
+audio.volume = .5;
+
+function stop(text) {
+  text && console.log(text);
+  clearInterval(_t);
+  anim.children[0].className = "";
+}
+
+offset.onchange = offset.oninput = function(e) {
+  label.innerText = offset.value;
+}
+
+function doStuff(bpm) {
+  if(!bpm) return console.warn("DAMN IT");
+
+  let step = 0;
+  let interval = 60/bpm;
+  anim.children[0].style.animationDuration = interval + "s";
+
+  audio.currentTime = +offset.value;
+
+  let old_time = 0;
+  audio.play();
+
+  clearInterval(_t);
+  _t = setInterval(function() {
+    anim.children[0].className = "";
+
+    step += interval*2;
+    const sum = +offset.value + step;
+    console.log(sum);
+    audio.currentTime = old_time = sum;
+    anim.children[0].className = "playing"/* + ~~(100*Math.random())*/;
+  }, interval*1e3);
+
+  audio.onended = function() {
+    stop("[] Song ended");
+  }
+
+  audio.onpause = function() {
+    stop("[] Song paused");
+  }
+}
+
+bpm_in.onchange = function(e) {
+  stop("[] BPM changed");
+  console.log("New BPM: " + this.value);
+  doStuff(+this.value || 0);
+}
+
+let dropzone = document.getElementById("dropzone");
+let _drag_timer;
+document.body.ondrop = function(e) {
+  e.preventDefault();
+  e.stopPropagation();
+
+  let dt = e.dataTransfer;
+  window.dt = dt;
+  let file;
+  if(dt.items) {
+    if(dt.items.length > 1) return;
+    file = dt.items[0].getAsFile();
+  } else {
+    if(dt.files.length > 1) return;
+    file = dt.files[0];
+  }
+  if(file.type.indexOf("audio") > -1
+  || file.type.indexOf("video") > -1) {
+    audio.src = URL.createObjectURL(file);
+
+    let fd = new FileReader();
+    fd.onload = function() {
+      var arrayBuffer = this.result;
+      console.log(this.result);
+      createBuffers(arrayBuffer);
+    }
+    fd.readAsArrayBuffer(file)
+  } else {
+    console.log("File format not supported");
+  }
+  dropzone.hidden = true;
+}
+
+document.body.ondragover = function(e) {
+  e.preventDefault();
+  e.stopPropagation();
+
+  let dt = e.dataTransfer;
+  if(dt.types && (dt.types.indexOf ? dt.types.indexOf("Files") != -1 : dt.types.contains("Files"))) {
+    //audio.pause();
+    dropzone.hidden = false;
+    clearTimeout(_drag_timer);
+  }
+}
+
+document.body.ondragleave = function(e) {
+  e.preventDefault();
+  e.stopPropagation();
+
+  _drag_timer = setTimeout(function() {
+    dropzone.hidden = true;
+  }, 25);
+}
+
+
+// Auto BPM detector from:
+// askmacgyver.com/blog/tutorial/how-to-implement-tempo-detection-in-your-application
+let originalBuffer;
+let lowPassBuffer;
+function createBuffers(buf) {
+  // Create and Save Original Buffer Audio Context in 'originalBuffer'
+  var audioCtx = new AudioContext();
+  var songLength = buf.byteLength;
+
+  // Arguments: Channels, Length, Sample Rate
+  var offlineCtx = new OfflineAudioContext(1, songLength, 44100);
+  source = offlineCtx.createBufferSource();
+  var audioData = buf;
+  audioCtx.decodeAudioData(audioData, function(buffer) {
+
+    window.originalBuffer = buffer.getChannelData(0);
+    var source = offlineCtx.createBufferSource();
+    source.buffer = buffer;
+
+    // Create a Low Pass Filter to Isolate Low End Beat
+    var filter = offlineCtx.createBiquadFilter();
+    filter.type = "lowpass";
+    filter.frequency.value = 140;
+    source.connect(filter);
+    filter.connect(offlineCtx.destination);
+
+    // Schedule start at time 0
+    source.start(0);
+
+    // Render this low pass filter data to new Audio Context and Save in 'lowPassBuffer'
+    offlineCtx.startRendering().then(function(lowPassAudioBuffer) {
+
+      var audioCtx = new(window.AudioContext || window.webkitAudioContext)(); 
+      var song = audioCtx.createBufferSource(); 
+      song.buffer = lowPassAudioBuffer;
+      song.connect(audioCtx.destination);
+
+      // Save lowPassBuffer in Global Array
+      window.lowPassBuffer = song.buffer.getChannelData(0);
+
+      // debugger;
+      console.log("Low Pass Buffer Rendered!");
+      // Overwrite our array buffer to a 10 second clip starting from 00:10 seconds into the song.
+      window.lowPassFilter = getClip(10, 10, window.lowPassBuffer);
+      // Overwrite our array to down-sampled, normalized array.
+      window.lowPassBuffer = normalizeArray(getSampleClip(window.lowPassFilter, 300));
+
+      var final_tempo = countFlatLineGroupings(window.lowPassBuffer);
+      console.log(final_tempo);
+      // final_tempo will be 21
+      final_tempo = final_tempo * 6;
+      console.log("Tempo: " + final_tempo);
+      bpm_in.value = final_tempo;
+      doStuff(final_tempo);
+      // final_tempo will be 126
+    });
+
+  }, function(e) {});
+}
+
+
+function getClip(length, startTime, data) {
+  var clip_length = length * 44100;
+  var section = startTime * 44100;
+  var newArr = [];
+
+  for(var i = 0; i < clip_length; i++) {
+    newArr.push(data[section + i]);
+  }
+
+  return newArr;
+}
+
+function getSampleClip(data, samples) {
+  var newArray = [];
+  var modulus_coefficient = Math.round(data.length / samples);
+
+  for (var i = 0; i < data.length; i++) {
+    if (i % modulus_coefficient == 0) {
+      newArray.push(data[i]);
+    }
+  }
+  return newArray;
+}
+
+function normalizeArray(data) {
+  var newArray = [];
+  for(var i = 0; i < data.length; i++) {
+    newArray.push(Math.abs(Math.round((data[i + 1] - data[i]) * 1000)));
+  }
+  return newArray;
+}
+
+function countFlatLineGroupings(data) {
+  var groupings = 0;
+  var newArray = normalizeArray(data);
+
+  function getMax(a) {
+    var m = -Infinity,
+      i = 0,
+      n = a.length;
+
+    for(; i != n; ++i) if (a[i] > m) m = a[i];
+    return m;
+  }
+
+  function getMin(a) {
+    var m = Infinity,
+      i = 0,
+      n = a.length;
+
+    for (; i != n; ++i) {
+      if (a[i] < m) {
+        m = a[i];
+      }
+    }
+    return m;
+  }
+
+  var max = getMax(newArray);
+  var min = getMin(newArray);
+  var count = 0;
+  var threshold = Math.round((max - min) * 0.2);
+
+  for (var i = 0; i < newArray.length; i++) {
+
+     if (newArray[i] > threshold && newArray[i + 1] < threshold && newArray[i + 2] < threshold && newArray[i + 3] < threshold && newArray[i + 6] < threshold) {
+      count++;
+    }
+  }
+
+  return count;
+}
+
+  </script>
+</body>
+</html>
